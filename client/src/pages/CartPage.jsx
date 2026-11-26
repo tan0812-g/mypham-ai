@@ -1,0 +1,20 @@
+import { useEffect, useState } from "react";
+import { ArrowRight, Check, ShoppingBag, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import ProductVisual from "../components/ProductVisual.jsx";
+import SimpleHeader from "../components/SimpleHeader.jsx";
+import { formatPrice } from "../data/products.js";
+import { cartCount, getCart, removeCartItem, saveCart, updateCartItem } from "../utils/cart.js";
+
+const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
+
+function CartPage() {
+  const [items, setItems] = useState(getCart);
+  useEffect(() => { const initialItems = getCart(); if (!initialItems.length) return; Promise.all(initialItems.map((item) => fetch(`${API}/api/products/${item.id}`).then((response) => response.json()).then((result) => result.success ? result.data : item).catch(() => item))).then((latest) => { const merged = initialItems.map((item) => ({ ...item, stock: latest.find((product) => product.id === item.id)?.stock ?? item.stock })); setItems(merged); saveCart(merged); }); }, []);
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const updateQuantity = (id, delta) => setItems((current) => { const item = current.find((entry) => entry.id === id); const max = Number(item?.stock); const nextQuantity = item.quantity + delta; return updateCartItem(id, Number.isFinite(max) && max >= 0 ? Math.min(max, nextQuantity) : nextQuantity); });
+  const stockIssue = items.some((item) => Number(item.stock) <= 0 || (Number(item.stock) > 0 && item.quantity > Number(item.stock)));
+  return <div className="sub-page"><SimpleHeader cartCount={cartCount(items)} /><main className="container cart-page"><div className="breadcrumb"><Link to="/">Trang chủ</Link><span>/</span><strong>Giỏ hàng</strong></div><div className="cart-heading"><div><span className="eyebrow">YOUR BEAUTY BAG</span><h1>Giỏ hàng <em>của bạn</em></h1></div><span>{items.length} sản phẩm</span></div><div className="cart-layout"><section className="cart-items">{items.map((item) => { const outOfStock = Number(item.stock) <= 0; const overStock = Number(item.stock) > 0 && item.quantity > Number(item.stock); return <article className="cart-item" key={item.id}><ProductVisual tone={item.tone} image={item.image} /><div className="cart-item-copy"><span>{item.category}</span><h3>{item.name}</h3><strong>{formatPrice(item.price)}</strong>{outOfStock ? <small className="cart-stock-error">Sản phẩm đã hết hàng</small> : overStock ? <small className="cart-stock-error">Chỉ còn {item.stock} sản phẩm</small> : <small className="cart-stock-note">Còn {item.stock} sản phẩm</small>}<div className="quantity"><button disabled={item.quantity <= 1} onClick={() => updateQuantity(item.id, -1)}>−</button><span>{item.quantity}</span><button disabled={outOfStock || item.quantity >= Number(item.stock)} onClick={() => updateQuantity(item.id, 1)}>+</button></div></div><button className="remove-item" onClick={() => setItems(removeCartItem(item.id))}><X size={16} /></button></article>; })}{items.length === 0 && <div className="empty-cart"><ShoppingBag size={32} /><h3>Giỏ hàng đang trống</h3><Link to="/#san-pham" className="button button-dark">Tiếp tục mua sắm</Link></div>}<Link to="/#san-pham" className="continue-shopping">← Tiếp tục mua sắm</Link></section><aside className="cart-summary"><h2>Tóm tắt đơn hàng</h2><div><span>Tạm tính</span><strong>{formatPrice(subtotal)}</strong></div><div><span>Phí vận chuyển</span><strong className="free-shipping">Miễn phí</strong></div><div className="summary-total"><span>Tổng cộng</span><strong>{formatPrice(subtotal)}</strong></div>{stockIssue && <p className="cart-checkout-error">Vui lòng cập nhật số lượng hoặc xóa sản phẩm hết hàng trước khi thanh toán.</p>}<Link to="/thanh-toan" onClick={(event) => { if (!items.length || stockIssue) event.preventDefault(); }} className={`button button-dark checkout-button ${!items.length || stockIssue ? "is-disabled" : ""}`}>Tiến hành thanh toán <ArrowRight size={16} /></Link><p><Check size={14} /> Freeship cho đơn từ 499.000đ</p></aside></div></main></div>;
+}
+
+export default CartPage;

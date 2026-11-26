@@ -1,0 +1,20 @@
+import { useEffect, useState } from "react";
+import { Check, ChevronDown, Headphones, HelpCircle, MessageCircle, Send } from "lucide-react";
+import { Link } from "react-router-dom";
+import SimpleHeader from "../components/SimpleHeader.jsx";
+
+const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
+const labels = { HO_TRO: "Hỗ trợ chung", HUY_DON: "Hủy đơn hàng", DOI_TRA: "Đổi trả sản phẩm" };
+
+function SupportPage() {
+  const [type, setType] = useState("HO_TRO");
+  const [content, setContent] = useState("");
+  const [requests, setRequests] = useState([]);
+  const [feedback, setFeedback] = useState("");
+  const loadRequests = () => fetch(`${API}/api/support`, { headers: { Authorization: `Bearer ${localStorage.getItem("mpai_token") || ""}` } }).then((response) => response.json()).then((result) => { if (result.success) setRequests(result.data); }).catch(() => {});
+  useEffect(() => { loadRequests(); }, []);
+  const submitRequest = async (event) => { event.preventDefault(); setFeedback("Đang gửi yêu cầu..."); const response = await fetch(`${API}/api/support`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("mpai_token") || ""}` }, body: JSON.stringify({ type, content }) }); const result = await response.json(); setFeedback(result.message); if (result.success) { setContent(""); loadRequests(); } };
+  return <div className="sub-page"><SimpleHeader /><main className="container support-page"><div className="breadcrumb"><Link to="/">Trang chủ</Link><span>/</span><strong>Hỗ trợ khách hàng</strong></div><div className="support-heading"><span className="eyebrow"><Headphones size={15} /> CUSTOMER CARE</span><h1>Chúng mình luôn<br /><em>ở đây để hỗ trợ bạn.</em></h1><p>Gửi yêu cầu và đội ngũ Mỹ Phẩm AI sẽ phản hồi trong thời gian sớm nhất.</p></div><div className="support-layout"><section className="support-card"><div className="support-card-title"><MessageCircle size={19} /><div><h2>Gửi yêu cầu hỗ trợ</h2><p>Thông tin được lưu trong tài khoản của bạn.</p></div></div><form onSubmit={submitRequest}><label>Loại yêu cầu<select value={type} onChange={(event) => setType(event.target.value)}><option value="HO_TRO">Hỗ trợ chung</option><option value="HUY_DON">Hủy đơn hàng</option><option value="DOI_TRA">Đổi trả sản phẩm</option></select></label><label>Nội dung yêu cầu<textarea required value={content} onChange={(event) => setContent(event.target.value)} placeholder="Hãy mô tả vấn đề bạn đang gặp phải..." rows="5" /></label>{feedback && <p className="support-feedback"><Check size={14} /> {feedback}</p>}<button className="button button-dark" type="submit"><Send size={15} /> Gửi yêu cầu</button></form></section><aside className="support-faq"><div className="faq-heading"><HelpCircle size={19} /><h2>Câu hỏi thường gặp</h2></div>{["Thời gian giao hàng bao lâu?", "Chính sách đổi trả như thế nào?", "Làm sao để theo dõi đơn hàng?", "AI có tư vấn điều trị da không?"].map((question) => <details key={question}><summary>{question}<ChevronDown size={15} /></summary><p>Vui lòng xem chính sách cửa hàng hoặc gửi yêu cầu để nhân viên hỗ trợ cụ thể cho đơn hàng của bạn.</p></details>)}</aside></div><section className="support-history"><div className="section-heading"><div><span className="eyebrow">MY REQUESTS</span><h2>Yêu cầu đã gửi</h2></div></div>{requests.map((request) => <div className="support-request" key={request.id}><div><span>{labels[request.type] || request.type}</span><strong>{request.content}</strong><small>{new Date(request.createdAt).toLocaleDateString("vi-VN")}</small>{request.reply && <p className="support-reply"><b>Phản hồi từ Mỹ Phẩm AI:</b> {request.reply}</p>}</div><b className={`support-status ${request.status === "DA_GIAI_QUYET" ? "resolved" : "open"}`}>{request.status === "DA_GIAI_QUYET" ? "Đã giải quyết" : "Đang tiếp nhận"}</b></div>)}{!requests.length && <div className="support-empty">Bạn chưa gửi yêu cầu hỗ trợ nào.</div>}</section></main></div>;
+}
+
+export default SupportPage;

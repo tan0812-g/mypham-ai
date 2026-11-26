@@ -1,0 +1,10 @@
+node_modules/
+client/dist/
+.env
+.env.local
+*.log
+.DS_Store
+.idea/
+.vscode/settings.json
+server/uploads/products/retailer-*/backup.json
+server/uploads/products/retailer-*/sources.json

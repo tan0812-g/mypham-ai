@@ -2,6 +2,42 @@
 
 Website bán mỹ phẩm gồm giao diện khách hàng và trang quản trị, sử dụng React/Vite, Express và MySQL.
 
+## Yêu cầu cần cài đặt
+
+Trước khi chạy project, cần cài:
+
+- **Node.js LTS** và npm: dùng để chạy frontend/backend.
+- **Git**: dùng để tải project từ GitHub.
+- **XAMPP**: dùng để chạy Apache và MySQL/MariaDB.
+- **Trình duyệt hiện đại**: Chrome, Safari, Edge hoặc Firefox.
+
+Kiểm tra Node.js và npm:
+
+```bash
+node -v
+npm -v
+```
+
+Kiểm tra Git:
+
+```bash
+git --version
+```
+
+Sau khi cài XAMPP, mở XAMPP và bật:
+
+- Apache Web Server.
+- MySQL Database/MariaDB.
+
+MySQL của project sử dụng port `3308`. Nếu máy dùng port khác, sửa lại `DB_PORT` trong file `server/.env`.
+
+## Tải project từ GitHub
+
+```bash
+git clone https://github.com/tan0812-g/mypham-ai.git
+cd mypham-ai
+```
+
 ## 1. Chuẩn bị database
 
 1. Mở XAMPP và bật MySQL/MariaDB ở port `3308`.

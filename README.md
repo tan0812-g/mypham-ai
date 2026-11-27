@@ -45,6 +45,8 @@ cd mypham-ai
 3. Tạo database tên `mypham_ai` với charset `utf8mb4_unicode_ci`.
 4. Import file SQL database của dự án.
 
+Nếu dùng bản SQL đã tải trước khi có phân quyền nhân viên, chạy thêm file `database/migrations/2026-11-27-staff-permissions.sql` trong phpMyAdmin (một lần). Bản cài mới cũng cần chạy file này sau khi import `database/mypham_ai.sql`.
+
 ## 2. Chạy backend
 
 ```bash
@@ -68,6 +70,19 @@ npm run dev
 ```
 
 Frontend chạy tại `http://localhost:5173`.
+
+## Thanh toán online bằng QR
+
+Checkout hỗ trợ thanh toán khi nhận hàng và chuyển khoản online bằng QR. Sau khi tạo file `client/.env.local`, điền thông tin tài khoản nhận tiền:
+
+```env
+VITE_PAYMENT_BANK_ID=970422
+VITE_PAYMENT_ACCOUNT_NO=SO_TAI_KHOAN_CUA_BAN
+VITE_PAYMENT_ACCOUNT_NAME=TEN_CHU_TAI_KHOAN
+VITE_PAYMENT_BANK_NAME=TEN_NGAN_HANG
+```
+
+Thay `VITE_PAYMENT_BANK_ID` bằng mã ngân hàng và `VITE_PAYMENT_ACCOUNT_NO` bằng số tài khoản thật của cửa hàng. Khởi động lại frontend sau khi sửa `.env.local`. Hiện tại hệ thống ghi nhận giao dịch online ở trạng thái chờ xác nhận; nhân viên quản trị xác nhận sau khi kiểm tra tiền về tài khoản.
 
 ## 4. Tài khoản mẫu
 

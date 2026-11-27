@@ -14,3 +14,10 @@ export function requireRole(...roles) {
     return next();
   };
 }
+
+export function requirePermission(permission) {
+  return (req, res, next) => {
+    if (req.user?.role === "QUAN_TRI" || req.user?.permissions?.includes(permission)) return next();
+    return res.status(403).json({ success: false, message: "Tài khoản chưa được cấp quyền cho chức năng này." });
+  };
+}

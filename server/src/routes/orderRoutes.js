@@ -26,8 +26,9 @@ router.patch("/:id/cancel", requireAuth, async (req, res, next) => {
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
-    const [[order]] = await connection.query("SELECT d.maDon AS id, d.trangThai AS status FROM don_hang d JOIN khach_hang kh ON kh.maKhachHang = d.maKhachHang WHERE d.maDon = ? AND kh.maTaiKhoan = ? FOR UPDATE", [req.params.id, req.user.id]);
+    const [[order]] = await connection.query("SELECT d.maDon AS id, d.trangThai AS status, gt.phuongThuc AS paymentMethod, gt.trangThai AS paymentStatus FROM don_hang d JOIN khach_hang kh ON kh.maKhachHang = d.maKhachHang LEFT JOIN giao_dich_thanh_toan gt ON gt.maDon = d.maDon WHERE d.maDon = ? AND kh.maTaiKhoan = ? FOR UPDATE", [req.params.id, req.user.id]);
     if (!order) { await connection.rollback(); return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng." }); }
+    if (order.paymentMethod === "ONLINE" && order.paymentStatus === "THANH_CONG") { await connection.rollback(); return res.status(409).json({ success: false, message: "Đơn đã thanh toán. Vui lòng liên hệ hỗ trợ để xử lý hoàn tiền trước khi hủy." }); }
     if (!["CHO_XAC_NHAN", "DA_XAC_NHAN"].includes(order.status)) { await connection.rollback(); return res.status(400).json({ success: false, message: "Đơn hàng đã được chuẩn bị hoặc đang giao nên không thể hủy." }); }
     const [items] = await connection.query("SELECT maSanPham AS productId, soLuong AS quantity FROM chi_tiet_don WHERE maDon = ?", [req.params.id]);
     for (const item of items) await connection.query("UPDATE ton_kho SET soLuongGiu = GREATEST(0, soLuongGiu - ?), capNhatLuc = NOW() WHERE maSanPham = ?", [item.quantity, item.productId]);
@@ -58,7 +59,8 @@ router.post("/", requireAuth, async (req, res, next) => {
     const total = Math.max(0, subtotal - discount) + shipping;
     const [order] = await connection.query("INSERT INTO don_hang (maKhachHang, maGiamGia, nguoiNhan, dienThoaiNhan, diaChiNhanLucDat, tongTienHang, tienGiam, phiVanChuyen, tongThanhToan, trangThai, taoLuc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'CHO_XAC_NHAN', NOW())", [customer.maKhachHang, couponId, receiver.name, receiver.phone, receiver.address, subtotal, discount, shipping, total]);
     for (const line of lines) { await connection.query("INSERT INTO chi_tiet_don (maDon, maSanPham, soLuong, donGiaLucMua, giamGiaLucMua, thanhTien) VALUES (?, ?, ?, ?, 0, ?)", [order.insertId, line.maSanPham, line.quantity, line.giaBan, line.lineTotal]); await connection.query("UPDATE ton_kho SET soLuongGiu = soLuongGiu + ?, capNhatLuc = NOW() WHERE maSanPham = ?", [line.quantity, line.maSanPham]); }
-    await connection.query("INSERT INTO giao_dich_thanh_toan (maDon, phuongThuc, soTien, trangThai, khoaXuLyMotLan, taoLuc) VALUES (?, ?, ?, 'CHO_XU_LY', ?, NOW())", [order.insertId, String(paymentMethod).toUpperCase() === "BANK" ? "ONLINE" : "COD", total, `ORDER-${order.insertId}-${Date.now()}`]);
+    const normalizedPayment = String(paymentMethod).toUpperCase();
+    await connection.query("INSERT INTO giao_dich_thanh_toan (maDon, phuongThuc, soTien, trangThai, khoaXuLyMotLan, taoLuc) VALUES (?, ?, ?, 'CHO_XU_LY', ?, NOW())", [order.insertId, ["BANK", "ONLINE"].includes(normalizedPayment) ? "ONLINE" : "COD", total, `ORDER-${order.insertId}-${Date.now()}`]);
     await connection.commit();
     return res.status(201).json({ success: true, message: "Đặt hàng thành công.", data: { id: order.insertId, code: `#MPAI-${String(order.insertId).padStart(4, "0")}`, total } });
   } catch (error) { await connection.rollback(); return next(error); } finally { connection.release(); }

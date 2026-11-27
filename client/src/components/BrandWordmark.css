@@ -1,0 +1,17 @@
+.brand-wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  font-size: clamp(1.15rem, 2.2vw, 1.55rem);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.brand-wordmark__name {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+.footer .brand {
+  display: inline-flex;
+}

@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, BriefcaseBusiness, RefreshCw, Search, UserPlus, Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import { adminPermissions } from "../data/adminPermissions.js";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
 function AdminStaffPage() {
   const [staff, setStaff] = useState([]);
   const [feedback, setFeedback] = useState("");
-  const [form, setForm] = useState({ name: "", email: "", password: "", position: "Nhân viên" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", position: "Nhân viên", permissions: [] });
+  const [editingId, setEditingId] = useState(null);
+  const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [search, setSearch] = useState("");
   const [workFilter, setWorkFilter] = useState("all");
 
@@ -31,10 +34,18 @@ function AdminStaffPage() {
       const response = await fetch(`${API}/api/admin/staff`, { method: "POST", headers: { ...headers(), "Content-Type": "application/json" }, body: JSON.stringify(form) });
       const result = await response.json();
       setFeedback(result.message || "");
-      if (result.success) { setForm({ name: "", email: "", password: "", position: "Nhân viên" }); loadStaff(); }
+      if (result.success) { setForm({ name: "", email: "", password: "", position: "Nhân viên", permissions: [] }); loadStaff(); }
     } catch { setFeedback("Không thể thêm nhân viên."); }
   };
   const updateStatus = async (member, status, working = member.working) => { const response = await fetch(`${API}/api/admin/staff/${member.id}/status`, { method: "PATCH", headers: { ...headers(), "Content-Type": "application/json" }, body: JSON.stringify({ status, working: Boolean(working) }) }); const result = await response.json(); setFeedback(result.message || ""); if (result.success) loadStaff(); };
+  const savePermissions = async (member) => {
+    try {
+      const response = await fetch(`${API}/api/admin/staff/${member.id}/permissions`, { method: "PATCH", headers: { ...headers(), "Content-Type": "application/json" }, body: JSON.stringify({ permissions: selectedPermissions }) });
+      const result = await response.json();
+      setFeedback(result.message || "");
+      if (response.ok) { setEditingId(null); loadStaff(); }
+    } catch { setFeedback("Không thể lưu quyền nhân viên."); }
+  };
   const filteredStaff = staff.filter((member) => { const keyword = search.trim().toLowerCase(); return (!keyword || member.name.toLowerCase().includes(keyword) || member.email.toLowerCase().includes(keyword)) && (workFilter === "all" || (workFilter === "working" && member.working) || (workFilter === "away" && !member.working) || (workFilter === "locked" && member.accountStatus === "KHOA")); });
 
   return <div className="admin-products-page">
@@ -49,11 +60,13 @@ function AdminStaffPage() {
         {feedback && <p className="admin-form-feedback">{feedback}</p>}
         <div className="admin-staff-filters"><label><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tên hoặc email..." /></label><select value={workFilter} onChange={(event) => setWorkFilter(event.target.value)}><option value="all">Tất cả nhân viên</option><option value="working">Đang làm</option><option value="away">Tạm nghỉ</option><option value="locked">Đã khóa tài khoản</option></select></div>
         <div className="staff-table-head"><span>Nhân viên</span><span>Chức vụ</span><span>Tài khoản</span><span>Làm việc</span></div>
-        {filteredStaff.map((member) => <div className="staff-row" key={member.id}>
+        {filteredStaff.map((member) => <div className="staff-member" key={member.id}><div className="staff-row">
           <div className="customer-identity"><span>{member.name.slice(0, 1)}</span><div><strong>{member.name}</strong><small>{member.email}</small></div></div>
           <span>{member.position || "Nhân viên"}</span>
           <select className="staff-status-select" value={member.accountStatus} onChange={(event) => updateStatus(member, event.target.value)}><option value="HOAT_DONG">Hoạt động</option><option value="KHOA">Đã khóa</option></select>
           <select className="staff-status-select" value={member.working ? "1" : "0"} onChange={(event) => updateStatus(member, member.accountStatus, event.target.value === "1")}><option value="1">Đang làm</option><option value="0">Tạm nghỉ</option></select>
+        </div><button className="staff-permission-toggle" onClick={() => { setEditingId(editingId === member.id ? null : member.id); setSelectedPermissions(member.permissions || []); }}>Phân quyền ({member.permissions?.length || 0})</button>
+        {editingId === member.id && <div className="staff-permissions"><PermissionPicker value={selectedPermissions} onChange={setSelectedPermissions} /><button className="button button-dark" onClick={() => savePermissions(member)}>Lưu quyền</button></div>}
         </div>)}
         {!filteredStaff.length && <div className="admin-empty-orders"><Users size={26} /><p>{staff.length ? "Không tìm thấy nhân viên phù hợp." : "Chưa có nhân viên."}</p></div>}
       </section>
@@ -63,10 +76,15 @@ function AdminStaffPage() {
         <label>Email đăng nhập<input type="email" name="email" value={form.email} onChange={updateForm} placeholder="nhanvien@example.com" required /></label>
         <label>Chức vụ<input name="position" value={form.position} onChange={updateForm} placeholder="Nhân viên" required /></label>
         <label>Mật khẩu<input type="password" name="password" value={form.password} onChange={updateForm} minLength="8" placeholder="Tối thiểu 8 ký tự" required /></label>
+        <PermissionPicker value={form.permissions} onChange={(permissions) => setForm((current) => ({ ...current, permissions }))} />
         <button className="button button-dark" type="submit"><BriefcaseBusiness size={15} /> Tạo tài khoản</button>
       </form>
     </main>
   </div>;
+}
+
+function PermissionPicker({ value, onChange }) {
+  return <fieldset className="staff-permissions-list"><legend>Quyền truy cập</legend>{adminPermissions.map((permission) => <label key={permission.id}><input type="checkbox" checked={value.includes(permission.id)} onChange={(event) => onChange(event.target.checked ? [...value, permission.id] : value.filter((item) => item !== permission.id))} />{permission.label}</label>)}</fieldset>;
 }
 
 export default AdminStaffPage;

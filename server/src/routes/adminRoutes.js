@@ -3,10 +3,27 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import bcrypt from "bcryptjs";
 import db from "../config/database.js";
-import { requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireRole, requirePermission } from "../middleware/auth.js";
 
 const router = Router();
-router.use(requireAuth, requireRole("QUAN_TRI"));
+router.use(requireAuth, requireRole("QUAN_TRI", "NHAN_VIEN"));
+router.use(async (req, res, next) => {
+  if (req.user.role !== "NHAN_VIEN") return next();
+  try {
+    const [[staff]] = await db.query("SELECT nv.quyenHan, nv.dangLamViec, tk.trangThai FROM nhan_vien nv JOIN tai_khoan tk ON tk.maTaiKhoan = nv.maTaiKhoan WHERE nv.maTaiKhoan = ?", [req.user.id]);
+    if (!staff || !staff.dangLamViec || staff.trangThai !== "HOAT_DONG") return res.status(403).json({ success: false, message: "Tài khoản nhân viên không còn hoạt động." });
+    req.user.permissions = JSON.parse(staff.quyenHan || "[]");
+    return next();
+  } catch (error) { return next(error); }
+});
+router.use((req, res, next) => {
+  if (req.user.role === "QUAN_TRI") return next();
+  const section = String(req.path.split("/")[1] || "dashboard");
+  const permissionBySection = { dashboard: "reports", products: "products", categories: "products", orders: "orders", reports: "reports", reviews: "reviews", customers: "customers", knowledge: "knowledge", support: "support", coupons: "coupons" };
+  if (section === "staff") return res.status(403).json({ success: false, message: "Chỉ quản trị viên được quản lý nhân viên." });
+  if (!permissionBySection[section]) return res.status(403).json({ success: false, message: "Chức năng này chưa được cấp quyền." });
+  return requirePermission(permissionBySection[section])(req, res, next);
+});
 
 router.get("/products", async (req, res, next) => {
   try { const [rows] = await db.query("SELECT p.maSanPham AS id, p.tenSanPham AS name, p.giaBan AS price, p.anhDaiDien AS image, p.anhHover AS hoverImage, p.trangThai AS status, d.maDanhMuc AS categoryId, d.tenDanhMuc AS category, COALESCE(t.soLuongThucTe, 0) AS stock, COALESCE(t.nguongCanhBao, 0) AS warningStock FROM san_pham p JOIN danh_muc d ON d.maDanhMuc = p.maDanhMuc LEFT JOIN ton_kho t ON t.maSanPham = p.maSanPham ORDER BY p.maSanPham DESC"); return res.json({ success: true, data: rows }); } catch (error) { return next(error); }
@@ -42,14 +59,24 @@ router.get("/orders", async (req, res, next) => { try { const [rows] = await db.
 
 router.get("/orders/:id", async (req, res, next) => { try { const [[order]] = await db.query("SELECT d.maDon AS id, CONCAT('#MPAI-', LPAD(d.maDon, 4, '0')) AS code, kh.hoTen AS customer, tk.email, d.nguoiNhan AS receiver, d.dienThoaiNhan AS phone, d.diaChiNhanLucDat AS address, d.tongTienHang AS subtotal, d.tienGiam AS discount, d.phiVanChuyen AS shipping, d.tongThanhToan AS total, d.trangThai AS status, d.taoLuc AS createdAt, gt.phuongThuc AS paymentMethod, gt.trangThai AS paymentStatus FROM don_hang d JOIN khach_hang kh ON kh.maKhachHang = d.maKhachHang JOIN tai_khoan tk ON tk.maTaiKhoan = kh.maTaiKhoan LEFT JOIN giao_dich_thanh_toan gt ON gt.maDon = d.maDon WHERE d.maDon = ? LIMIT 1", [req.params.id]); if (!order) return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng." }); const [items] = await db.query("SELECT ct.maSanPham AS id, sp.tenSanPham AS name, ct.soLuong AS quantity, ct.donGiaLucMua AS price, ct.thanhTien AS lineTotal FROM chi_tiet_don ct JOIN san_pham sp ON sp.maSanPham = ct.maSanPham WHERE ct.maDon = ?", [req.params.id]); return res.json({ success: true, data: { ...order, items } }); } catch (error) { return next(error); } });
 
+router.patch("/orders/:id/payment", async (req, res, next) => {
+  if (req.body?.status !== "THANH_CONG") return res.status(400).json({ success: false, message: "Trạng thái thanh toán không hợp lệ." });
+  try {
+    const [result] = await db.query("UPDATE giao_dich_thanh_toan gt JOIN don_hang d ON d.maDon = gt.maDon SET gt.trangThai = 'THANH_CONG' WHERE gt.maDon = ? AND gt.phuongThuc = 'ONLINE' AND gt.trangThai = 'CHO_XU_LY' AND d.trangThai <> 'DA_HUY'", [req.params.id]);
+    if (!result.affectedRows) return res.status(409).json({ success: false, message: "Giao dịch không còn ở trạng thái chờ thanh toán." });
+    return res.json({ success: true, message: "Đã xác nhận nhận được tiền chuyển khoản." });
+  } catch (error) { return next(error); }
+});
+
 router.patch("/orders/:id/status", async (req, res, next) => {
   const allowed = ["CHO_XAC_NHAN", "DA_XAC_NHAN", "DANG_CHUAN_BI", "DANG_GIAO", "DA_GIAO", "DA_HUY"];
   if (!allowed.includes(req.body?.status)) return res.status(400).json({ success: false, message: "Trạng thái đơn hàng không hợp lệ." });
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
-    const [[order]] = await connection.query("SELECT maDon AS id, trangThai AS status FROM don_hang WHERE maDon = ? FOR UPDATE", [req.params.id]);
+    const [[order]] = await connection.query("SELECT d.maDon AS id, d.trangThai AS status, gt.phuongThuc AS paymentMethod, gt.trangThai AS paymentStatus FROM don_hang d LEFT JOIN giao_dich_thanh_toan gt ON gt.maDon = d.maDon WHERE d.maDon = ? FOR UPDATE", [req.params.id]);
     if (!order) { await connection.rollback(); return res.status(404).json({ success: false, message: "Không tìm thấy đơn hàng." }); }
+    if (req.body.status === "DA_HUY" && order.paymentMethod === "ONLINE" && order.paymentStatus === "THANH_CONG") { await connection.rollback(); return res.status(409).json({ success: false, message: "Đơn đã thanh toán. Cần xử lý hoàn tiền trước khi hủy." }); }
     if (order.status === req.body.status) { await connection.rollback(); return res.json({ success: true, message: "Trạng thái đơn hàng không thay đổi." }); }
     if (["DA_GIAO", "DA_HUY"].includes(order.status)) { await connection.rollback(); return res.status(400).json({ success: false, message: "Đơn hàng đã kết thúc, không thể đổi lại trạng thái." }); }
     const [result] = await connection.query("UPDATE don_hang SET trangThai = ?, maNhanVienXuLy = (SELECT maNhanVien FROM nhan_vien WHERE maTaiKhoan = ?) WHERE maDon = ?", [req.body.status, req.user.id, req.params.id]);
@@ -88,9 +115,20 @@ router.post("/coupons", async (req, res, next) => { const { code, type = "FIXED"
 
 router.patch("/coupons/:id/status", async (req, res, next) => { try { const [result] = await db.query("UPDATE ma_giam_gia SET kichHoat = ? WHERE maGiamGia = ?", [req.body?.active ? 1 : 0, req.params.id]); if (!result.affectedRows) return res.status(404).json({ success: false, message: "Không tìm thấy mã giảm giá." }); return res.json({ success: true, message: "Đã cập nhật mã giảm giá." }); } catch (error) { return next(error); } });
 
-router.get("/staff", async (req, res, next) => { try { const [rows] = await db.query("SELECT nv.maNhanVien AS id, nv.hoTen AS name, nv.chucVu AS position, nv.dangLamViec AS working, tk.email, tk.trangThai AS accountStatus FROM nhan_vien nv JOIN tai_khoan tk ON tk.maTaiKhoan = nv.maTaiKhoan ORDER BY nv.maNhanVien DESC"); return res.json({ success: true, data: rows }); } catch (error) { return next(error); } });
+router.get("/staff", async (req, res, next) => { try { const [rows] = await db.query("SELECT nv.maNhanVien AS id, nv.hoTen AS name, nv.chucVu AS position, nv.dangLamViec AS working, nv.quyenHan AS permissions, tk.email, tk.trangThai AS accountStatus FROM nhan_vien nv JOIN tai_khoan tk ON tk.maTaiKhoan = nv.maTaiKhoan ORDER BY nv.maNhanVien DESC"); return res.json({ success: true, data: rows.map((row) => ({ ...row, permissions: typeof row.permissions === "string" ? JSON.parse(row.permissions || "[]") : row.permissions || [] })) }); } catch (error) { return next(error); } });
 
-router.post("/staff", async (req, res, next) => { const { name, email, password, position = "Nhân viên" } = req.body || {}; if (!name?.trim() || !email?.trim() || !password || password.length < 8) return res.status(400).json({ success: false, message: "Vui lòng nhập đủ thông tin, mật khẩu tối thiểu 8 ký tự." }); try { const [existing] = await db.query("SELECT maTaiKhoan FROM tai_khoan WHERE email = ?", [email.trim().toLowerCase()]); if (existing.length) return res.status(409).json({ success: false, message: "Email đã tồn tại." }); const passwordHash = await bcrypt.hash(password, 10); const connection = await db.getConnection(); try { await connection.beginTransaction(); const [account] = await connection.query("INSERT INTO tai_khoan (email, matKhauBam, vaiTro, trangThai, taoLuc) VALUES (?, ?, 'NHAN_VIEN', 'HOAT_DONG', NOW())", [email.trim().toLowerCase(), passwordHash]); await connection.query("INSERT INTO nhan_vien (maTaiKhoan, hoTen, chucVu, dangLamViec) VALUES (?, ?, ?, 1)", [account.insertId, name.trim(), position]); await connection.commit(); return res.status(201).json({ success: true, message: "Đã thêm nhân viên." }); } catch (error) { await connection.rollback(); throw error; } finally { connection.release(); } } catch (error) { return next(error); } });
+router.patch("/staff/:id/permissions", async (req, res, next) => {
+  const allowed = ["orders", "products", "customers", "reports", "reviews", "knowledge", "support", "coupons"];
+  const permissions = req.body?.permissions;
+  if (!Array.isArray(permissions) || permissions.some((permission) => !allowed.includes(permission))) return res.status(400).json({ success: false, message: "Danh sách quyền không hợp lệ." });
+  try {
+    const [result] = await db.query("UPDATE nhan_vien SET quyenHan = ? WHERE maNhanVien = ?", [JSON.stringify([...new Set(permissions)]), req.params.id]);
+    if (!result.affectedRows) return res.status(404).json({ success: false, message: "Không tìm thấy nhân viên." });
+    return res.json({ success: true, message: "Đã cập nhật quyền nhân viên." });
+  } catch (error) { return next(error); }
+});
+
+router.post("/staff", async (req, res, next) => { const { name, email, password, position = "Nhân viên", permissions = [] } = req.body || {}; if (!Array.isArray(permissions) || permissions.some((item) => !["orders", "products", "customers", "reports", "reviews", "knowledge", "support", "coupons"].includes(item))) return res.status(400).json({ success: false, message: "Danh sách quyền không hợp lệ." }); if (!name?.trim() || !email?.trim() || !password || password.length < 8) return res.status(400).json({ success: false, message: "Vui lòng nhập đủ thông tin, mật khẩu tối thiểu 8 ký tự." }); try { const [existing] = await db.query("SELECT maTaiKhoan FROM tai_khoan WHERE email = ?", [email.trim().toLowerCase()]); if (existing.length) return res.status(409).json({ success: false, message: "Email đã tồn tại." }); const passwordHash = await bcrypt.hash(password, 10); const connection = await db.getConnection(); try { await connection.beginTransaction(); const [account] = await connection.query("INSERT INTO tai_khoan (email, matKhauBam, vaiTro, trangThai, taoLuc) VALUES (?, ?, 'NHAN_VIEN', 'HOAT_DONG', NOW())", [email.trim().toLowerCase(), passwordHash]); await connection.query("INSERT INTO nhan_vien (maTaiKhoan, hoTen, chucVu, dangLamViec, quyenHan) VALUES (?, ?, ?, 1, ?)", [account.insertId, name.trim(), position, JSON.stringify([...new Set(permissions)])]); await connection.commit(); return res.status(201).json({ success: true, message: "Đã thêm nhân viên." }); } catch (error) { await connection.rollback(); throw error; } finally { connection.release(); } } catch (error) { return next(error); } });
 
 router.patch("/staff/:id/status", async (req, res, next) => { const { status, working } = req.body || {}; if (!["HOAT_DONG", "KHOA"].includes(status) || ![0, 1, true, false].includes(working)) return res.status(400).json({ success: false, message: "Trạng thái nhân viên không hợp lệ." }); try { const [result] = await db.query("UPDATE nhan_vien nv JOIN tai_khoan tk ON tk.maTaiKhoan = nv.maTaiKhoan SET tk.trangThai = ?, nv.dangLamViec = ? WHERE nv.maNhanVien = ?", [status, working ? 1 : 0, req.params.id]); if (!result.affectedRows) return res.status(404).json({ success: false, message: "Không tìm thấy nhân viên." }); return res.json({ success: true, message: "Đã cập nhật trạng thái nhân viên." }); } catch (error) { return next(error); } });
 

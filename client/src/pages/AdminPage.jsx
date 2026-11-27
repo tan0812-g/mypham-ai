@@ -33,6 +33,7 @@ function AdminPage() {
   const [dashboard, setDashboard] = useState(null);
   const [feedback, setFeedback] = useState("");
   const navigate = useNavigate();
+  const currentUser = JSON.parse(localStorage.getItem("mpai_admin_user") || "null");
   const menu = [
     { label: "Tổng quan", to: "/admin", icon: LayoutDashboard },
     { label: "Đơn hàng", to: "/admin/don-hang", icon: ClipboardList },
@@ -88,7 +89,7 @@ function AdminPage() {
           </span>
         </Link>
         <div className="admin-nav">
-          {menu.map((item) => (
+          {menu.filter((item) => currentUser?.role === "QUAN_TRI" || (item.to !== "/admin/nhan-vien" && currentUser?.permissions?.includes(({ "/admin": "reports", "/admin/don-hang": "orders", "/admin/san-pham": "products", "/admin/danh-muc": "products", "/admin/khach-hang": "customers", "/admin/bao-cao": "reports", "/admin/ma-giam-gia": "coupons", "/admin/danh-gia": "reviews", "/admin/kien-thuc-ai": "knowledge", "/admin/ho-tro": "support" })[item.to]))).map((item) => (
             <NavLink
               key={item.label}
               to={item.to}
@@ -103,8 +104,8 @@ function AdminPage() {
           <div className="admin-user">
             <span>NT</span>
             <div>
-              <strong>Nguyễn Mạnh Tân</strong>
-              <small>Quản trị viên</small>
+              <strong>{currentUser?.name || "Quản trị viên"}</strong>
+              <small>{currentUser?.role === "QUAN_TRI" ? "Quản trị viên" : "Nhân viên"}</small>
             </div>
           </div>
           <Link to="/" className="back-store">

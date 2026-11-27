@@ -61,6 +61,18 @@ function AdminOrdersPage() {
     if (result.success) setSelectedOrder(result.data);
     else setFeedback(result.message || "Không thể tải chi tiết đơn hàng.");
   };
+  const confirmPayment = async () => {
+    try {
+      const response = await fetch(`${API}/api/admin/orders/${selectedOrder.id}/payment`, {
+        method: "PATCH",
+        headers: { ...headers(), "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "THANH_CONG" }),
+      });
+      const result = await response.json();
+      setFeedback(result.message || "");
+      if (response.ok) setSelectedOrder((order) => ({ ...order, paymentStatus: "THANH_CONG" }));
+    } catch { setFeedback("Không thể xác nhận thanh toán."); }
+  };
   const filteredOrders = orders.filter((order) => {
     const keyword = search.trim().toLowerCase();
     return (!keyword || order.code.toLowerCase().includes(keyword) || order.customer.toLowerCase().includes(keyword)) && (statusFilter === "all" || order.status === statusFilter);
@@ -174,6 +186,8 @@ function AdminOrdersPage() {
                     ? "Thanh toán khi nhận hàng"
                     : "Thanh toán online"}
                 </span>
+                <span>Trạng thái thanh toán: {selectedOrder.paymentStatus === "THANH_CONG" ? "Đã thanh toán" : selectedOrder.paymentStatus === "CHO_XU_LY" ? "Chờ xác nhận" : selectedOrder.paymentStatus}</span>
+                {selectedOrder.paymentMethod === "ONLINE" && selectedOrder.paymentStatus === "CHO_XU_LY" && selectedOrder.status !== "DA_HUY" && <button className="button button-dark" onClick={confirmPayment}>Xác nhận đã nhận tiền</button>}
               </div>
             </div>
             <div className="admin-order-items">

@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { firstAdminPath } from "./data/adminPermissions.js";
 import AdminPage from "./pages/AdminPage.jsx";
 import AdminProductsPage from "./pages/AdminProductsPage.jsx";
 import AdminOrdersPage from "./pages/AdminOrdersPage.jsx";
@@ -31,10 +32,18 @@ function App() {
 }
 
 function AdminGuard({ children }) {
+  const location = useLocation();
   let user = null;
   try { user = JSON.parse(localStorage.getItem("mpai_admin_user") || "null"); } catch { localStorage.removeItem("mpai_admin_user"); }
   const token = localStorage.getItem("mpai_admin_token");
-  return token && user?.role === "QUAN_TRI" ? children : <Navigate to="/admin/login" replace />;
+  if (!token || !["QUAN_TRI", "NHAN_VIEN"].includes(user?.role)) return <Navigate to="/admin/login" replace />;
+  if (user.role === "QUAN_TRI") return children;
+  const section = location.pathname.split("/")[2] || "dashboard";
+  const permissions = { dashboard: "reports", "san-pham": "products", "danh-muc": "products", "don-hang": "orders", "bao-cao": "reports", "khach-hang": "customers", "danh-gia": "reviews", "kien-thuc-ai": "knowledge", "ho-tro": "support", "ma-giam-gia": "coupons" };
+  if (user.permissions?.includes(permissions[section])) return children;
+  const destination = firstAdminPath(user);
+  if (location.pathname === destination) return <p className="admin-form-feedback">Bạn chưa được cấp quyền truy cập trang này.</p>;
+  return <Navigate to={destination} replace />;
 }
 
 export default App;

@@ -1,6 +1,6 @@
 # Báo cáo kiểm thử Mỹ Phẩm AI
 
-- Thời gian chạy: lúc 22:11:59 Thứ Sáu, 27 tháng 11, 2026 (Việt Nam)
+- Thời gian chạy: lúc 22:17:31 Thứ Sáu, 27 tháng 11, 2026 (Việt Nam)
 - Kết quả: **3/3 bước đạt**
 - Node.js: v26.10.0
 
@@ -8,9 +8,9 @@
 
 | Bước | Lệnh | Kết quả | Thời gian |
 | --- | --- | --- | ---: |
-| Kiểm thử backend (6 bài) | `cd server && npm test` | Đạt | 363 ms |
-| Kiểm tra mã frontend | `cd client && npm run lint` | Đạt | 1995 ms |
-| Tạo bản build frontend | `cd client && npm run build` | Đạt | 605 ms |
+| Kiểm thử backend (6 bài) | `cd server && npm test` | Đạt | 411 ms |
+| Kiểm tra mã frontend | `cd client && npm run lint` | Đạt | 1993 ms |
+| Tạo bản build frontend | `cd client && npm run build` | Đạt | 614 ms |
 
 ## Kết quả chi tiết
 
@@ -20,12 +20,12 @@
 > server@1.0.0 test
 > node --test
 
-✔ gộp sản phẩm trùng trong giỏ và tính tiền từ giá trong database (0.550375ms)
-✔ chặn vượt số lượng còn bán kể cả khi giỏ có dòng trùng (0.280041ms)
-✔ từ chối số lượng không hợp lệ thay vì tự đổi thành 1 (0.459958ms)
-✔ chỉ chấp nhận chữ ký của nguyên văn body (0.892041ms)
-✔ chỉ đối chiếu giao dịch tiền vào đúng tài khoản và mã đơn (0.569709ms)
-✔ giữ và trả tồn kho trong transaction, sau đó rollback dữ liệu thử (17.012ms)
+✔ gộp sản phẩm trùng trong giỏ và tính tiền từ giá trong database (1.348417ms)
+✔ chặn vượt số lượng còn bán kể cả khi giỏ có dòng trùng (0.296584ms)
+✔ từ chối số lượng không hợp lệ thay vì tự đổi thành 1 (0.497958ms)
+✔ chỉ chấp nhận chữ ký của nguyên văn body (1.367ms)
+✔ chỉ đối chiếu giao dịch tiền vào đúng tài khoản và mã đơn (0.869916ms)
+✔ giữ và trả tồn kho trong transaction, sau đó rollback dữ liệu thử (56.420625ms)
 ℹ tests 6
 ℹ suites 0
 ℹ pass 6
@@ -33,7 +33,7 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 171.640459
+ℹ duration_ms 218.726917
 ```
 
 ### Kiểm tra mã frontend
@@ -58,7 +58,7 @@ dist/index.html                   0.62 kB │ gzip:   0.39 kB
 dist/assets/index-Bsml7fPG.css  338.57 kB │ gzip:  51.28 kB
 dist/assets/index-D5YY50-P.js   430.10 kB │ gzip: 120.00 kB
 
-✓ built in 299ms
+✓ built in 297ms
 ```
 
 ## Phạm vi chưa kiểm thử tự động

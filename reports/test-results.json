@@ -1,0 +1,35 @@
+{
+  "startedAt": "2026-11-27T15:05:36.384Z",
+  "finishedAt": "2026-11-27T15:05:39.476Z",
+  "passed": 3,
+  "total": 3,
+  "results": [
+    {
+      "name": "Kiểm thử backend",
+      "command": "cd server && npm test",
+      "passed": true,
+      "exitCode": 0,
+      "durationMs": 361,
+      "tests": 2,
+      "output": "> server@1.0.0 test\n> node --test\n\n✔ chỉ chấp nhận chữ ký của nguyên văn body (1.447ms)\n✔ chỉ đối chiếu giao dịch tiền vào đúng tài khoản và mã đơn (0.931834ms)\nℹ tests 2\nℹ suites 0\nℹ pass 2\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 165.414167"
+    },
+    {
+      "name": "Kiểm tra mã frontend",
+      "command": "cd client && npm run lint",
+      "passed": true,
+      "exitCode": 0,
+      "durationMs": 2115,
+      "tests": null,
+      "output": "> client@0.0.0 lint\n> eslint ."
+    },
+    {
+      "name": "Tạo bản build frontend",
+      "command": "cd client && npm run build",
+      "passed": true,
+      "exitCode": 0,
+      "durationMs": 615,
+      "tests": null,
+      "output": "> client@0.0.0 build\n> vite build\n\nvite v8.3.8 building client environment for production...\ntransforming...\n✓ 2132 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.62 kB │ gzip:   0.39 kB\ndist/assets/index-Bsml7fPG.css  338.57 kB │ gzip:  51.28 kB\ndist/assets/index-D5YY50-P.js   430.10 kB │ gzip: 120.00 kB\n\n✓ built in 289ms"
+    }
+  ]
+}

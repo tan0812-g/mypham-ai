@@ -110,12 +110,15 @@ Phiên đăng nhập lưu trong bảng `phien_dang_nhap` của MySQL, có hạn 
 - Sản phẩm: `http://localhost:5173/admin/san-pham`
 - Báo cáo: `http://localhost:5173/admin/bao-cao`
 
-## 6. Kiểm tra bản build
+## 6. Chạy kiểm thử và lưu báo cáo
 
 ```bash
-cd client
-npm run lint
-npm run build
+cd server
+npm run test:report
 ```
+
+Lệnh trên chạy kiểm thử backend, ESLint và build frontend. Kết quả hiển thị trong Terminal và được lưu vào `reports/test-report.md` (báo cáo dễ đọc) cùng `reports/test-results.json` (dữ liệu chi tiết). Chạy lại cùng lệnh để cập nhật báo cáo theo lần kiểm thử mới nhất. Cần chạy `npm install` trong cả `server` và `client` trước lần đầu kiểm thử.
+
+Các luồng cần kiểm tra thủ công như đặt/hủy đơn và xác nhận tiền ngân hàng được ghi rõ là **chưa kiểm thử tự động** trong báo cáo; không nên xem kết quả build là bằng chứng toàn bộ web đã hoạt động.
 
 Ảnh upload được lưu trong `server/uploads/products`. Không xóa thư mục này nếu muốn giữ ảnh sản phẩm.

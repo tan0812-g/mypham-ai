@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test",
+    "test:report": "node ../scripts/run-tests.mjs",
     "dev": "node --watch src/index.js",
     "start": "node src/index.js"
   },

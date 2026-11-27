@@ -66,6 +66,8 @@ function AdminPage() {
     return () => window.clearTimeout(timer);
   }, [loadDashboard]);
   const logout = () => {
+    const token = localStorage.getItem("mpai_admin_token");
+    if (token) fetch(`${API}/api/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
     localStorage.removeItem("mpai_admin_token");
     localStorage.removeItem("mpai_admin_user");
     navigate("/admin/login", { replace: true });

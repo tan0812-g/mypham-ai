@@ -27,6 +27,10 @@ function LoginPage() {
       const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: formData.get("email"), password: formData.get("password") }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || "Đăng nhập thất bại.");
+      if (result.data?.role !== "KHACH_HANG") {
+        fetch(`${import.meta.env.VITE_API_URL || "http://localhost:4000"}/api/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${result.token}` } }).catch(() => {});
+        throw new Error("Tài khoản quản trị hoặc nhân viên vui lòng đăng nhập ở trang quản trị.");
+      }
       localStorage.setItem("mpai_token", result.token);
       localStorage.setItem("mpai_user", JSON.stringify(result.data));
       navigate("/tai-khoan");

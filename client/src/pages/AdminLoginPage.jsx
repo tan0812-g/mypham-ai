@@ -22,7 +22,10 @@ function AdminLoginPage() {
       const response = await fetch(`${API}/api/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: formData.get("email"), password: formData.get("password") }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || "Đăng nhập thất bại.");
-      if (!["QUAN_TRI", "NHAN_VIEN"].includes(result.data?.role)) throw new Error("Tài khoản này không có quyền truy cập trang quản trị.");
+      if (!["QUAN_TRI", "NHAN_VIEN"].includes(result.data?.role)) {
+        fetch(`${API}/api/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${result.token}` } }).catch(() => {});
+        throw new Error("Tài khoản này không có quyền truy cập trang quản trị.");
+      }
       localStorage.setItem("mpai_admin_token", result.token);
       localStorage.setItem("mpai_admin_user", JSON.stringify(result.data));
       navigate(location.state?.from || firstAdminPath(result.data), { replace: true });

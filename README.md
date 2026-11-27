@@ -84,9 +84,22 @@ VITE_PAYMENT_BANK_NAME=TEN_NGAN_HANG
 
 Thay `VITE_PAYMENT_BANK_ID` bằng mã ngân hàng và `VITE_PAYMENT_ACCOUNT_NO` bằng số tài khoản thật của cửa hàng. Khởi động lại frontend sau khi sửa `.env.local`. Hiện tại hệ thống ghi nhận giao dịch online ở trạng thái chờ xác nhận; nhân viên quản trị xác nhận sau khi kiểm tra tiền về tài khoản.
 
+### Chuẩn bị đối chiếu chuyển khoản tự động
+
+Backend có đầu nhận `POST /api/payments/webhook` để kết nối **dịch vụ thông báo giao dịch ngân hàng** sau này. Chưa kết nối dịch vụ thì đơn vẫn chờ nhân viên kiểm tra và xác nhận; chỉ hiển thị QR không thể xác định tiền đã về.
+
+Khi có dịch vụ, cấu hình `PAYMENT_ACCOUNT_NO` (trùng số tài khoản nhận tiền trong frontend) và `PAYMENT_WEBHOOK_SECRET` (chuỗi bí mật tối thiểu 32 ký tự) trong `server/.env`. Bộ kết nối phải gửi JSON gồm `transactionId`, `amount` (số VND), `content` (có mã chuyển khoản `MPAI 0013`), `destinationAccount` và `direction: "IN"`. Header `x-payment-signature` là HMAC SHA-256 dạng hex tính từ **nguyên văn body JSON** bằng `PAYMENT_WEBHOOK_SECRET`. Backend chỉ xác nhận đơn online còn chờ khi chữ ký đúng, số tài khoản và số tiền khớp, mã đơn hợp lệ và giao dịch chưa được xử lý. Không đưa secret vào frontend hoặc Git.
+
+## Gợi ý sản phẩm và phiên đăng nhập
+
+Trang AI tư vấn lấy sản phẩm đang bán, còn hàng từ MySQL rồi lọc theo nhu cầu, loại da và ngân sách. Đây là gợi ý theo quy tắc dựa trên dữ liệu sản phẩm, chưa dùng mô hình AI bên ngoài.
+
+Phiên đăng nhập lưu trong bảng `phien_dang_nhap` của MySQL, có hạn 7 ngày và không mất khi backend khởi động lại. Hai bảng `phien_dang_nhap` và `bank_payment_events` được backend tự tạo khi chạy lần đầu. Sau khi cập nhật từ phiên bản cũ, đăng nhập lại một lần để nhận phiên mới.
+
 ## 4. Tài khoản mẫu
 
 - Quản trị: `admin@mypham-ai.vn` / `password`
+- Nhân viên: `nhanvien@mypham-ai.vn` / `password`
 - Khách hàng: `tuananh@example.com` / `password`
 
 ## 5. Các địa chỉ chính

@@ -1,10 +1,10 @@
-import { randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { Router } from "express";
 import db from "../config/database.js";
+import { requireAuth } from "../middleware/auth.js";
+import { createSession, deleteSession } from "../services/sessions.js";
 
 const router = Router();
-const sessions = new Map();
 
 router.post("/register", async (req, res, next) => {
   const { name, email, password } = req.body || {};
@@ -33,15 +33,20 @@ router.post("/login", async (req, res, next) => {
     const [rows] = await db.query("SELECT tk.maTaiKhoan, tk.email, tk.matKhauBam, tk.vaiTro, kh.hoTen AS customerName, nv.hoTen AS staffName, nv.dangLamViec, nv.quyenHan FROM tai_khoan tk LEFT JOIN khach_hang kh ON kh.maTaiKhoan = tk.maTaiKhoan LEFT JOIN nhan_vien nv ON nv.maTaiKhoan = tk.maTaiKhoan WHERE tk.email = ? AND tk.trangThai = 'HOAT_DONG'", [normalizedEmail]);
     const account = rows[0];
     if (!account || !(await bcrypt.compare(String(password || ""), account.matKhauBam))) return res.status(401).json({ success: false, message: "Email hoặc mật khẩu không đúng." });
-    const token = randomUUID();
     if (account.vaiTro === "NHAN_VIEN" && !account.dangLamViec) return res.status(403).json({ success: false, message: "Tài khoản nhân viên hiện đang tạm nghỉ." });
+    const token = await createSession(account.maTaiKhoan);
     let permissions = [];
     try { permissions = JSON.parse(account.quyenHan || "[]"); } catch { permissions = []; }
     const user = { id: account.maTaiKhoan, name: account.staffName || account.customerName || account.email, email: account.email, role: account.vaiTro, permissions };
-    sessions.set(token, user);
     return res.json({ success: true, message: "Đăng nhập thành công.", token, data: user });
   } catch (error) { return next(error); }
 });
 
-export { sessions };
+router.post("/logout", requireAuth, async (req, res, next) => {
+  try {
+    await deleteSession(String(req.headers.authorization).replace("Bearer ", ""));
+    return res.json({ success: true, message: "Đã đăng xuất." });
+  } catch (error) { return next(error); }
+});
+
 export default router;

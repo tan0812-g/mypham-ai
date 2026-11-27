@@ -61,16 +61,20 @@ function AdminOrdersPage() {
     if (result.success) setSelectedOrder(result.data);
     else setFeedback(result.message || "Không thể tải chi tiết đơn hàng.");
   };
-  const confirmPayment = async () => {
+  const confirmPayment = async (order) => {
+    if (!window.confirm(`Bạn đã kiểm tra tài khoản ngân hàng và nhận đủ ${Number(order.total).toLocaleString("vi-VN")} đ cho đơn ${order.code}?`)) return;
     try {
-      const response = await fetch(`${API}/api/admin/orders/${selectedOrder.id}/payment`, {
+      const response = await fetch(`${API}/api/admin/orders/${order.id}/payment`, {
         method: "PATCH",
         headers: { ...headers(), "Content-Type": "application/json" },
         body: JSON.stringify({ status: "THANH_CONG" }),
       });
       const result = await response.json();
       setFeedback(result.message || "");
-      if (response.ok) setSelectedOrder((order) => ({ ...order, paymentStatus: "THANH_CONG" }));
+      if (response.ok) {
+        setOrders((current) => current.map((item) => item.id === order.id ? { ...item, paymentStatus: "THANH_CONG" } : item));
+        setSelectedOrder((current) => current?.id === order.id ? { ...current, paymentStatus: "THANH_CONG" } : current);
+      }
     } catch { setFeedback("Không thể xác nhận thanh toán."); }
   };
   const filteredOrders = orders.filter((order) => {
@@ -111,6 +115,7 @@ function AdminOrdersPage() {
             <span>Ngày đặt</span>
             <span>Tổng tiền</span>
             <span>Trạng thái</span>
+            <span>Thanh toán</span>
             <span />
           </div>
           {filteredOrders.map((order) => (
@@ -131,6 +136,12 @@ function AdminOrdersPage() {
                   </option>
                 ))}
               </select>
+              <div className="admin-order-payment">
+                <span>{order.paymentMethod === "ONLINE" ? order.paymentStatus === "THANH_CONG" ? "Đã nhận tiền" : "Chờ chuyển khoản" : "Thanh toán khi nhận"}</span>
+                {order.paymentMethod === "ONLINE" && order.paymentStatus === "CHO_XU_LY" && order.status !== "DA_HUY" && (
+                  <button type="button" onClick={() => confirmPayment(order)}>Xác nhận đã nhận tiền</button>
+                )}
+              </div>
               <button
                 className="admin-order-view"
                 onClick={() => viewOrder(order.id)}
@@ -187,7 +198,7 @@ function AdminOrdersPage() {
                     : "Thanh toán online"}
                 </span>
                 <span>Trạng thái thanh toán: {selectedOrder.paymentStatus === "THANH_CONG" ? "Đã thanh toán" : selectedOrder.paymentStatus === "CHO_XU_LY" ? "Chờ xác nhận" : selectedOrder.paymentStatus}</span>
-                {selectedOrder.paymentMethod === "ONLINE" && selectedOrder.paymentStatus === "CHO_XU_LY" && selectedOrder.status !== "DA_HUY" && <button className="button button-dark" onClick={confirmPayment}>Xác nhận đã nhận tiền</button>}
+                {selectedOrder.paymentMethod === "ONLINE" && selectedOrder.paymentStatus === "CHO_XU_LY" && selectedOrder.status !== "DA_HUY" && <button className="button button-dark" onClick={() => confirmPayment(selectedOrder)}>Xác nhận đã nhận tiền</button>}
               </div>
             </div>
             <div className="admin-order-items">

@@ -1,11 +1,13 @@
-import { sessions } from "../routes/authRoutes.js";
+import { getSessionUser } from "../services/sessions.js";
 
-export function requireAuth(req, res, next) {
+export async function requireAuth(req, res, next) {
   const token = String(req.headers.authorization || "").replace("Bearer ", "");
-  const user = sessions.get(token);
-  if (!user) return res.status(401).json({ success: false, message: "Vui lòng đăng nhập để tiếp tục." });
-  req.user = user;
-  return next();
+  try {
+    const user = await getSessionUser(token);
+    if (!user) return res.status(401).json({ success: false, message: "Vui lòng đăng nhập để tiếp tục." });
+    req.user = user;
+    return next();
+  } catch (error) { return next(error); }
 }
 
 export function requireRole(...roles) {

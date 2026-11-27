@@ -28,6 +28,7 @@ const results = checks.map((check) => {
   const output = [processResult.stdout, processResult.stderr, processResult.error?.message].filter(Boolean).join("\n").trim();
   const exitCode = processResult.status ?? 1;
   const tests = check.directory === "server" ? Number(output.match(/(?:^|\n)ℹ tests (\d+)/)?.[1] || 0) : null;
+  const skipped = check.directory === "server" ? Number(output.match(/(?:^|\n)ℹ skipped (\d+)/)?.[1] || 0) : null;
   return {
     name: check.name,
     command: `cd ${check.directory} && npm ${check.args.join(" ")}`,
@@ -35,6 +36,7 @@ const results = checks.map((check) => {
     exitCode,
     durationMs: Date.now() - start,
     tests,
+    skipped,
     output,
   };
 });
@@ -53,7 +55,7 @@ const markdown = [
   "",
   "| Bước | Lệnh | Kết quả | Thời gian |",
   "| --- | --- | --- | ---: |",
-  ...results.map((result) => `| ${result.name}${result.tests !== null ? ` (${result.tests} bài)` : ""} | \`${result.command}\` | ${result.passed ? "Đạt" : `Lỗi (mã ${result.exitCode})`} | ${result.durationMs} ms |`),
+  ...results.map((result) => `| ${result.name}${result.tests !== null ? ` (${result.tests} bài${result.skipped ? `, ${result.skipped} bỏ qua` : ""})` : ""} | \`${result.command}\` | ${result.passed ? "Đạt" : `Lỗi (mã ${result.exitCode})`} | ${result.durationMs} ms |`),
   "",
   "## Kết quả chi tiết",
   "",
@@ -67,7 +69,7 @@ const markdown = [
   ]),
   "## Phạm vi chưa kiểm thử tự động",
   "",
-  "Các thao tác đăng nhập trên trình duyệt, đặt/hủy đơn, phân quyền nhân viên, ảnh tải lên, xuất báo cáo và đối chiếu tiền về ngân hàng cần được thử riêng. Báo cáo này không xác nhận các luồng đó đã đạt.",
+  "Bộ kiểm thử hiện kiểm tra dữ liệu giỏ hàng, chặn vượt kho và giữ/trả kho trong transaction MySQL có rollback. Các luồng giao diện từ đầu đến cuối như đăng nhập, đặt/hủy đơn, phân quyền nhân viên, ảnh tải lên, xuất báo cáo và nhận tiền ngân hàng cần được thử riêng. Báo cáo này không xác nhận các luồng đó đã đạt.",
   "",
   "## Cách chạy lại",
   "",

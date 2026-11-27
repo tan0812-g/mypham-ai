@@ -117,8 +117,8 @@ cd server
 npm run test:report
 ```
 
-Lệnh trên chạy kiểm thử backend, ESLint và build frontend. Kết quả hiển thị trong Terminal và được lưu vào `reports/test-report.md` (báo cáo dễ đọc) cùng `reports/test-results.json` (dữ liệu chi tiết). Chạy lại cùng lệnh để cập nhật báo cáo theo lần kiểm thử mới nhất. Cần chạy `npm install` trong cả `server` và `client` trước lần đầu kiểm thử.
+Lệnh trên chạy kiểm thử backend, ESLint và build frontend. Kết quả hiển thị trong Terminal và được lưu vào `reports/test-report.md` (báo cáo dễ đọc) cùng `reports/test-results.json` (dữ liệu chi tiết). Chạy lại cùng lệnh để cập nhật báo cáo theo lần kiểm thử mới nhất. Cần chạy `npm install` trong cả `server` và `client` trước lần đầu kiểm thử. Bài kiểm thử giữ/trả kho dùng MySQL trong một transaction rồi rollback; nếu MySQL chưa bật, bài này được ghi là bỏ qua.
 
-Các luồng cần kiểm tra thủ công như đặt/hủy đơn và xác nhận tiền ngân hàng được ghi rõ là **chưa kiểm thử tự động** trong báo cáo; không nên xem kết quả build là bằng chứng toàn bộ web đã hoạt động.
+Các luồng cần kiểm tra thủ công từ đầu đến cuối như đặt/hủy đơn và xác nhận tiền ngân hàng được ghi rõ là **chưa kiểm thử tự động** trong báo cáo; không nên xem kết quả build là bằng chứng toàn bộ web đã hoạt động.
 
 Ảnh upload được lưu trong `server/uploads/products`. Không xóa thư mục này nếu muốn giữ ảnh sản phẩm.
